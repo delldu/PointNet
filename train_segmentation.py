@@ -11,10 +11,11 @@ from datasets import PartDataset
 from pointnet import PointNetDenseCls
 import torch.nn.functional as F
 
+import pdb
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '--batchSize', type=int, default=32, help='input batch size')
+    '--batchSize', type=int, default=16, help='input batch size')
 parser.add_argument(
     '--workers', type=int, help='number of data loading workers', default=4)
 parser.add_argument(
@@ -24,17 +25,19 @@ parser.add_argument('--model', type=str, default='', help='model path')
 
 
 opt = parser.parse_args()
-print(opt)
-
 opt.manualSeed = random.randint(1, 10000)  # fix seed
-print("Random Seed: ", opt.manualSeed)
+# print("Random Seed: ", opt.manualSeed)
 random.seed(opt.manualSeed)
 torch.manual_seed(opt.manualSeed)
+print(opt)
 
+
+shape_name = 'Airplane'
 dataset = PartDataset(
     root='shapenetcore_partanno_segmentation_benchmark_v0',
     classification=False,
-    class_choice=['Chair'])
+    class_choice=[shape_name]
+    )
 dataloader = torch.utils.data.DataLoader(
     dataset,
     batch_size=opt.batchSize,
@@ -44,7 +47,7 @@ dataloader = torch.utils.data.DataLoader(
 test_dataset = PartDataset(
     root='shapenetcore_partanno_segmentation_benchmark_v0',
     classification=False,
-    class_choice=['Chair'],
+    class_choice=[shape_name],
     train=False)
 testdataloader = torch.utils.data.DataLoader(
     test_dataset,
@@ -52,9 +55,9 @@ testdataloader = torch.utils.data.DataLoader(
     shuffle=True,
     num_workers=int(opt.workers))
 
-print(len(dataset), len(test_dataset))
+print("Train data:", len(dataset), "Test data:", len(test_dataset))
 num_classes = dataset.num_seg_classes
-print('classes', num_classes)
+print('Classes: ', num_classes)
 try:
     os.makedirs(opt.outf)
 except OSError:
@@ -72,10 +75,26 @@ classifier.cuda()
 
 num_batch = len(dataset) / opt.batchSize
 
+# pdb.set_trace()
+# (Pdb) pp test_dataset.num_seg_classes
+# 3
+# (Pdb) pp test_dataset.catfile
+# 'shapenetcore_partanno_segmentation_benchmark_v0/synsetoffset2category.txt'
+# (Pdb) pp test_dataset.cat
+# {'Chair': '03001627'}
+# (Pdb) pp len(dataset)
+# 3371
+
 for epoch in range(opt.nepoch):
     for i, data in enumerate(dataloader, 0):
         points, target = data
         points, target = Variable(points), Variable(target)
+        # pdb.set_trace()
+        # (Pdb) pp points.shape
+        # torch.Size([16, 2500, 3])
+        # (Pdb) pp target.shape
+        # torch.Size([16, 2500])
+
         points = points.transpose(2, 1)
         points, target = points.cuda(), target.cuda()
         optimizer.zero_grad()
@@ -83,6 +102,13 @@ for epoch in range(opt.nepoch):
         pred, _ = classifier(points)
         pred = pred.view(-1, num_classes)
         target = target.view(-1, 1)[:, 0] - 1
+
+        # pdb.set_trace()
+        # (Pdb) pred.shape
+        # torch.Size([40000, 4])
+        # (Pdb) target.shape
+        # torch.Size([40000])
+
         #print(pred.size(), target.size())
         loss = F.nll_loss(pred, target)
         loss.backward()
@@ -90,6 +116,8 @@ for epoch in range(opt.nepoch):
         pred_choice = pred.data.max(1)[1]
         correct = pred_choice.eq(target.data).cpu().sum()
         print('[%d: %d/%d] train loss: %f accuracy: %f' % (epoch, i, num_batch, loss.item(), correct.item()/float(opt.batchSize * 2500)))
+
+        # pdb.set_trace()
 
         if i % 10 == 0:
             j, data = next(enumerate(testdataloader, 0))

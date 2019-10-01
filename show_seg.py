@@ -9,6 +9,7 @@ from torch.autograd import Variable
 from datasets import PartDataset
 from pointnet import PointNetDenseCls
 import matplotlib.pyplot as plt
+import pdb
 
 
 #showpoints(np.random.randn(2500,3), c1 = np.random.uniform(0,1,size = (2500)))
@@ -26,6 +27,7 @@ print(opt)
 d = PartDataset(
     root='shapenetcore_partanno_segmentation_benchmark_v0',
     class_choice=['Airplane'],
+    npoints=2500,
     train=False)
 
 idx = opt.idx
@@ -33,19 +35,21 @@ idx = opt.idx
 print("model %d/%d" % (idx, len(d)))
 
 point, seg = d[idx]
-print(point.size(), seg.size())
 
-point_np = point.numpy()
+# print(point.size(), seg.size())
+# torch.Size([2500, 3]) torch.Size([2500])
 
-
-
-cmap = plt.cm.get_cmap("hsv", 10)
-cmap = np.array([cmap(i) for i in range(10)])[:, :3]
-gt = cmap[seg.numpy() - 1, :]
 
 classifier = PointNetDenseCls(k=4)
 classifier.load_state_dict(torch.load(opt.model))
 classifier.eval()
+
+
+point_np = point.numpy()
+
+cmap = plt.cm.get_cmap("hsv", 10)
+cmap = np.array([cmap(i) for i in range(10)])[:, :3]
+gt = cmap[seg.numpy() - 1, :]
 
 point = point.transpose(1, 0).contiguous()
 
@@ -57,5 +61,9 @@ print(pred_choice)
 #print(pred_choice.size())
 pred_color = cmap[pred_choice.numpy()[0], :]
 
+# pdb.set_trace()
+
 #print(pred_color.shape)
+
 showpoints(point_np, gt, pred_color)
+

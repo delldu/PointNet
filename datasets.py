@@ -4,6 +4,7 @@ import os
 import os.path
 import torch
 import numpy as np
+import pdb
 
 class PartDataset(data.Dataset):
     def __init__(self,
@@ -11,6 +12,7 @@ class PartDataset(data.Dataset):
                  npoints=2500,
                  classification=False,
                  class_choice=None,
+                 shuffle=True,
                  train=True):
         self.npoints = npoints
         self.root = root
@@ -18,6 +20,7 @@ class PartDataset(data.Dataset):
         self.cat = {}
 
         self.classification = classification
+        self.shuffle = shuffle
 
         with open(self.catfile, 'r') as f:
             for line in f:
@@ -26,6 +29,24 @@ class PartDataset(data.Dataset):
         #print(self.cat)
         if not class_choice is None:
             self.cat = {k: v for k, v in self.cat.items() if k in class_choice}
+
+        # (Pdb) pp self.cat
+        # {'Airplane': '02691156',
+        #  'Bag': '02773838',
+        #  'Cap': '02954340',
+        #  'Car': '02958343',
+        #  'Chair': '03001627',
+        #  'Earphone': '03261776',
+        #  'Guitar': '03467517',
+        #  'Knife': '03624134',
+        #  'Lamp': '03636649',
+        #  'Laptop': '03642806',
+        #  'Motorbike': '03790512',
+        #  'Mug': '03797390',
+        #  'Pistol': '03948459',
+        #  'Rocket': '04099429',
+        #  'Skateboard': '04225987',
+        #  'Table': '04379243'}
 
         self.meta = {}
         for item in self.cat:
@@ -45,6 +66,11 @@ class PartDataset(data.Dataset):
                 token = (os.path.splitext(os.path.basename(fn))[0])
                 self.meta[item].append((os.path.join(dir_point, token + '.pts'), os.path.join(dir_seg, token + '.seg')))
 
+
+        # (Pdb) pp  len(self.meta['Airplane']), self.meta['Airplane'][0]
+        # (2421,
+        #  ('shapenetcore_partanno_segmentation_benchmark_v0/02691156/points/1021a0914a7207aff927ed529ad90a11.pts',
+        #   'shapenetcore_partanno_segmentation_benchmark_v0/02691156/points_label/1021a0914a7207aff927ed529ad90a11.seg'))
         self.datapath = []
         for item in self.cat:
             for fn in self.meta[item]:
@@ -61,18 +87,26 @@ class PartDataset(data.Dataset):
                     self.num_seg_classes = l
         #print(self.num_seg_classes)
 
+        # pdb.set_trace()
 
     def __getitem__(self, index):
         fn = self.datapath[index]
-        cls = self.classes[self.datapath[index][0]]
+        # ('Airplane', 'shapenetcore_partanno_segmentation_benchmark_v0/
+        #    02691156/points/1021a0914a7207aff927ed529ad90a11.pts', 
+        # 'shapenetcore_partanno_segmentation_benchmark_v0
+        #    /02691156/points_label/1021a0914a7207aff927ed529ad90a11.seg')
+        cls = self.classes[fn[0]]
         point_set = np.loadtxt(fn[1]).astype(np.float32)
         seg = np.loadtxt(fn[2]).astype(np.int64)
-        #print(point_set.shape, seg.shape)
 
-        choice = np.random.choice(len(seg), self.npoints, replace=True)
-        #resample
-        point_set = point_set[choice, :]
-        seg = seg[choice]
+        #print(point_set.shape, seg.shape)
+        if self.shuffle:
+            choice = np.random.choice(len(seg), self.npoints, replace=True)
+            #resample
+            point_set = point_set[choice, :]
+            seg = seg[choice]
+
+
         point_set = torch.from_numpy(point_set)
         seg = torch.from_numpy(seg)
         cls = torch.from_numpy(np.array([cls]).astype(np.int64))

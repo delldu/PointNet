@@ -2,6 +2,8 @@ import numpy as np
 import ctypes as ct
 import cv2
 import sys
+import pdb
+
 showsz = 800
 mousex, mousey = 0.5, 0.5
 zoom = 1.0
@@ -49,6 +51,19 @@ def showpoints(xyz,c_gt=None, c_pred = None, waittime=0,
     c2 = np.require(c2, 'float32', 'C')
 
     show = np.zeros((showsz, showsz, 3), dtype='uint8')
+    # pdb.set_trace()
+    # (Pdb) pp xyz.shape
+    # (2500, 3)
+    # (Pdb) pp c_gt.shape
+    # (2500, 3)
+    # (Pdb) pp c_pred.shape
+    # (2500, 3)
+    # (Pdb) pp showsz
+    # 800
+    # (Pdb) pp c0.shape, c1.shape, c2.shape
+    # ((2500,), (2500,), (2500,))
+
+
     def render():
         rotmat=np.eye(3)
         if not freezerot:
@@ -155,6 +170,8 @@ def showpoints(xyz,c_gt=None, c_pred = None, waittime=0,
             changed=True
         elif cmd==ord('s'):
             cv2.imwrite('show3d.png',show)
+        elif cmd==ord('x'):
+            cv2.imwrite('chair.png',show)
         if waittime!=0:
             break
     return cmd
